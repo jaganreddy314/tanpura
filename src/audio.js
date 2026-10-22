@@ -5,10 +5,10 @@
 const PATTERN_GAPS = [1, 1, 1, 1.36];
 const PATTERN_TOTAL = PATTERN_GAPS.reduce((a, b) => a + b, 0);
 
-// Partial loudness (dB) by frequency (Hz), fitted to reference tanpura recordings.
+// Base partial loudness (dB) by frequency (Hz): full low harmonics for a warm body, and a smooth
+// roll-off above ~800 Hz so the buzz never turns harsh. The jawari glow is added in the worker.
 export const TIMBRE_EQ = [
-  [100, -23.3], [160, -30.2], [200, -22.4], [300, -25.4], [400, -7.6], [500, -10.5], [650, -7], [800, -2], [1000, -5.1],
-  [1300, -5.1], [1600, -1.3], [2000, -10.6], [2500, -25], [3200, -20.6], [4000, -28.2], [5000, -23.9], [6400, -23.9], [9000, -32.9],
+  [60, -3], [150, 0], [300, -1], [500, -4], [800, -8], [1200, -13], [2000, -21], [3000, -30], [5000, -42], [7000, -52],
 ];
 const PANS = [-0.35, -0.1, 0.1, 0.35];
 const STRING_GAIN = [0.9, 0.8, 0.8, 1.05];
@@ -24,7 +24,7 @@ function makeImpulse(ctx, seconds = 3.6, decay = 2.6) {
     let lp = 0;
     for (let i = pre; i < len; i++) {
       const t = (i - pre) / (len - pre);
-      lp += (Math.random() * 2 - 1 - lp) * (0.15 + 0.7 * (1 - t));
+      lp += (Math.random() * 2 - 1 - lp) * (0.08 + 0.3 * (1 - t));
       d[i] = lp * Math.pow(1 - t, decay);
     }
   }

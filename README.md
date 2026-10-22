@@ -31,11 +31,13 @@ such as Netlify, Vercel, Cloudflare Pages or GitHub Pages, open it, and choose *
 
 There are no audio samples. `src/synth.worker.js` synthesizes each string with additive synthesis:
 
-- **Tone:** each harmonic's loudness comes from a frequency curve (`TIMBRE_EQ` in `src/audio.js`). The curve was
-  fitted to reference "Your Tanpura" recordings in A and G#, and matches their spectrum to within about 1.5 dB per
-  1/3-octave band. The result is weak fundamentals, a strong buzzing band at 0.6–1.7 kHz, and a steep fall above 2 kHz.
-- **Jawari bloom:** each pluck starts with a short attack on the low harmonics, then the upper harmonics swell in
-  over about a second, like a real buzzing bridge.
+- **Tone:** a warm, string-like base (`TIMBRE_EQ` in `src/audio.js`): full low harmonics and a smooth roll-off
+  above ~800 Hz. An earlier version copied the spectrum of phone recordings, which made it sound harsh and
+  electronic, like an electric guitar.
+- **Jawari glow:** after a soft finger pluck, a gentle resonance blooms around 1.8 kHz and slowly sinks to about
+  500 Hz while the note rings, which gives the tanpura its moving shimmer.
+- **Two voices per harmonic:** each harmonic is two sines a fraction of a hertz apart, like a string vibrating
+  in two planes. This gives the slow, natural beating of a real instrument instead of a static tone.
 - **Rhythm:** Pa · Sa · Sa · low Sa, with the last gap about 1.36× the others. The default cycle is 3.5 s, matching
   the reference recordings (3.4–3.6 s).
 
