@@ -1,7 +1,15 @@
 // Tanpura audio engine: renders string buffers in a worker, then loops the
 // classic pluck pattern (1st · Sa · Sa · low Sa · pause) with a lookahead scheduler.
 
-const PATTERN_GAPS = [1, 1, 1, 2];
+// Relative gaps after Pa, Sa, Sa and low Sa, measured from reference tanpura recordings.
+const PATTERN_GAPS = [1, 1, 1, 1.36];
+const PATTERN_TOTAL = PATTERN_GAPS.reduce((a, b) => a + b, 0);
+
+// Partial loudness (dB) by frequency (Hz), fitted to reference tanpura recordings.
+export const TIMBRE_EQ = [
+  [100, -23.3], [160, -30.2], [200, -22.4], [300, -25.4], [400, -7.6], [500, -10.5], [650, -7], [800, -2], [1000, -5.1],
+  [1300, -5.1], [1600, -1.3], [2000, -10.6], [2500, -25], [3200, -20.6], [4000, -28.2], [5000, -23.9], [6400, -23.9], [9000, -32.9],
+];
 const PANS = [-0.35, -0.1, 0.1, 0.35];
 const STRING_GAIN = [0.9, 0.8, 0.8, 1.05];
 const NOTE_SECONDS = 9;
@@ -30,7 +38,8 @@ export class TanpuraEngine {
     this.freqKey = '';
     this.playing = false;
     this.cents = 0;
-    this.cycle = 5.5;
+    this.cycle = 3.5;
+    this.eq = TIMBRE_EQ;
     this.onPluck = null;
     this.active = new Set();
     this.worker = new Worker(new URL('./synth.worker.js', import.meta.url), { type: 'module' });
@@ -53,18 +62,13 @@ export class TanpuraEngine {
     this.ctx = ctx;
 
     this.input = ctx.createGain();
-    const low = ctx.createBiquadFilter();
-    low.type = 'peaking'; low.frequency.value = 220; low.Q.value = 0.9; low.gain.value = 3;
-    const presence = ctx.createBiquadFilter();
-    presence.type = 'peaking'; presence.frequency.value = 2800; presence.Q.value = 0.7; presence.gain.value = 2.5;
-    this.input.connect(low).connect(presence);
 
     this.dry = ctx.createGain();
     this.wet = ctx.createGain();
     this.convolver = ctx.createConvolver();
     this.convolver.buffer = makeImpulse(ctx);
-    presence.connect(this.dry);
-    presence.connect(this.convolver).connect(this.wet);
+    this.input.connect(this.dry);
+    this.input.connect(this.convolver).connect(this.wet);
 
     this.playGain = ctx.createGain();
     this.playGain.gain.value = 0;
@@ -100,7 +104,7 @@ export class TanpuraEngine {
       this.worker.postMessage({
         id,
         sampleRate: this.ctx.sampleRate,
-        strings: freqs.map((freq, i) => ({ freq, seed: 1234 + i * 97, duration: NOTE_SECONDS })),
+        strings: freqs.map((freq, i) => ({ freq, seed: 1234 + i * 97, duration: NOTE_SECONDS, eq: this.eq })),
       });
     });
     if (id !== this.renderId) return; // a newer key was chosen meanwhile
@@ -181,7 +185,7 @@ export class TanpuraEngine {
     const ctx = this.ctx;
     while (this.nextTime < ctx.currentTime + 0.25) {
       this._pluck(this.step, this.nextTime + (Math.random() - 0.5) * 0.02);
-      this.nextTime += (PATTERN_GAPS[this.step] * this.cycle) / 5;
+      this.nextTime += (PATTERN_GAPS[this.step] * this.cycle) / PATTERN_TOTAL;
       this.step = (this.step + 1) % 4;
     }
   }

@@ -7,12 +7,16 @@ import { NOTES, OCTAVES, FIRST_STRINGS, saFrequency, stringFrequencies, stringLa
 registerSW({ immediate: true });
 
 const $ = (id) => document.getElementById(id);
-const STORAGE_KEY = 'tanpura-settings-v1';
-const DEFAULTS = { key: 9, octave: 3, first: 'Pa', cycle: 5.5, volume: 0.8, cents: 0, reverb: 0.35 };
+const STORAGE_KEY = 'tanpura-settings-v2';
+const DEFAULTS = { key: 9, octave: 3, first: 'Pa', cycle: 3.5, volume: 0.8, cents: 0, reverb: 0.35 };
 
 function loadSettings() {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') };
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return { ...DEFAULTS, ...JSON.parse(saved) };
+    // v1 used a much slower default rhythm; keep everything else the user chose.
+    const { cycle, ...v1 } = JSON.parse(localStorage.getItem('tanpura-settings-v1') || '{}');
+    return { ...DEFAULTS, ...v1 };
   } catch {
     return { ...DEFAULTS };
   }

@@ -1,6 +1,6 @@
 // Renders tanpura string plucks off the main thread.
-// Additive synthesis with a sweeping formant that imitates the "jawari" (buzzing bridge):
-// the energy blooms through the upper harmonics and slowly glides down while the note sustains.
+// Additive synthesis: each partial is shaped by a frequency-dependent timbre curve and a
+// slow "bloom" that imitates the buzzing jawari bridge.
 
 function mulberry32(a) {
   return function () {
@@ -12,20 +12,29 @@ function mulberry32(a) {
   };
 }
 
-function renderString(sr, { freq, seed, duration }) {
+// Loudness of a partial (dB) by its frequency, interpolated on a log-frequency axis.
+function eqDb(table, f) {
+  if (f <= table[0][0]) return table[0][1];
+  for (let i = 1; i < table.length; i++) {
+    const [f1, d1] = table[i];
+    if (f <= f1) {
+      const [f0, d0] = table[i - 1];
+      return d0 + ((d1 - d0) * Math.log(f / f0)) / Math.log(f1 / f0);
+    }
+  }
+  return table.at(-1)[1];
+}
+
+function renderString(sr, { freq, seed, duration, eq }) {
   const rnd = mulberry32(seed);
   const len = Math.floor(sr * duration);
   const out = new Float32Array(len);
   const BLOCK = 64;
-  const maxH = Math.max(1, Math.min(64, Math.floor((sr * 0.45) / freq)));
+  const fMax = Math.min(sr * 0.45, 9000);
 
-  const cStart = Math.min(maxH, 20 + rnd() * 8);
-  const cEnd = 2 + rnd();
-  const tau = 1.2 + rnd() * 0.5;
-  const formW = 3.2;
-
-  for (let n = 1; n <= maxH; n++) {
-    const fn = freq * n * Math.sqrt(1 + 0.00001 * n * n) * (1 + (rnd() - 0.5) * 0.0005);
+  for (let n = 1; n * freq < fMax; n++) {
+    // Jawari keeps the partials harmonic; only a tiny random detune for life.
+    const fn = freq * n * (1 + (rnd() - 0.5) * 0.0005);
     const w = (2 * Math.PI * fn) / sr;
     const cw = Math.cos(w);
     const sw = Math.sin(w);
@@ -33,18 +42,24 @@ function renderString(sr, { freq, seed, duration }) {
     let re = Math.cos(ph);
     let im = Math.sin(ph);
 
-    const base = 1 / Math.pow(n, 0.8);
-    const decay = 0.35 + 0.035 * n;
-    const shF = 0.25 + rnd() * 1.1;
+    // Spectral shape measured from real tanpura recordings: weak fundamentals,
+    // a strong buzzing band around 0.6–1.7 kHz, and a steep fall above 2 kHz.
+    const gain = Math.pow(10, eqDb(eq, fn) / 20);
+    const decay = 0.3 + fn / 6000;
+    // Jawari "bloom": upper partials swell in after the pluck instead of starting at full strength.
+    const bloomDepth = Math.min(0.95, fn / 1200);
+    const bloomTau = 0.12 + 1.3 * Math.min(1, fn / 2000);
+    // Audible pluck: the lower partials start with a short burst before the bloom takes over.
+    const attack = 1.6 * Math.max(0, 1 - fn / 1400);
+    const shF = 0.3 + rnd() * 1.4;
     const shP = rnd() * Math.PI * 2;
-    const shD = 0.1 + 0.25 * Math.min(1, n / 10);
+    const shD = 0.08 + 0.3 * Math.min(1, fn / 1500);
 
-    const envAt = (t) => {
-      const c = cEnd + (cStart - cEnd) * Math.exp(-t / tau);
-      const d = n - c;
-      const boost = 1 + 3.2 * Math.exp(-(d * d) / (2 * formW * formW));
-      return base * Math.exp(-decay * t) * boost * (1 + shD * Math.sin(2 * Math.PI * shF * t + shP));
-    };
+    const envAt = (t) =>
+      gain *
+      Math.exp(-decay * t) *
+      (1 - bloomDepth * Math.exp(-t / bloomTau) + attack * Math.exp(-t / 0.09)) *
+      (1 + shD * Math.sin(2 * Math.PI * shF * t + shP));
 
     let env = envAt(0);
     for (let b = 0; b < len; b += BLOCK) {
@@ -64,11 +79,11 @@ function renderString(sr, { freq, seed, duration }) {
   }
 
   // Pluck transient: a short burst of softened noise.
-  const nLen = Math.floor(sr * 0.02);
+  const nLen = Math.floor(sr * 0.015);
   let lp = 0;
   for (let i = 0; i < nLen; i++) {
-    lp += ((rnd() * 2 - 1) - lp) * 0.35;
-    out[i] += lp * 0.6 * (1 - i / nLen);
+    lp += ((rnd() * 2 - 1) - lp) * 0.25;
+    out[i] += lp * 0.15 * (1 - i / nLen);
   }
 
   const atk = sr * 0.004;

@@ -29,9 +29,14 @@ such as Netlify, Vercel, Cloudflare Pages or GitHub Pages, open it, and choose *
 
 ## How the sound works
 
-There are no audio samples. `src/synth.worker.js` synthesizes each string with additive synthesis. A formant sweeps
-from the high harmonics down to the low ones, which imitates the buzzing *jawari* bridge. The engine (`src/audio.js`)
-plays the classic pattern Pa · Sa · Sa · low Sa, adds a short pause, and runs the result through body-resonance EQ
-and a convolution reverb.
+There are no audio samples. `src/synth.worker.js` synthesizes each string with additive synthesis:
+
+- **Tone:** each harmonic's loudness comes from a frequency curve (`TIMBRE_EQ` in `src/audio.js`). The curve was
+  fitted to reference "Your Tanpura" recordings in A and G#, and matches their spectrum to within about 1.5 dB per
+  1/3-octave band. The result is weak fundamentals, a strong buzzing band at 0.6–1.7 kHz, and a steep fall above 2 kHz.
+- **Jawari bloom:** each pluck starts with a short attack on the low harmonics, then the upper harmonics swell in
+  over about a second, like a real buzzing bridge.
+- **Rhythm:** Pa · Sa · Sa · low Sa, with the last gap about 1.36× the others. The default cycle is 3.5 s, matching
+  the reference recordings (3.4–3.6 s).
 
 Icons: edit `public/icons/icon.svg`, then run `npm run icons` (needs `rsvg-convert`).
