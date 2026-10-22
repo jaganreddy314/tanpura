@@ -2,6 +2,8 @@
 
 A 3D tanpura drone PWA for singing practice (riyaz).
 
+**Live:** https://jaganreddy314.github.io/tanpura/
+
 **Stack:** Vite · Three.js (bloom post-processing) · Web Audio API · vite-plugin-pwa (offline + installable)
 
 ## Run
@@ -13,6 +15,7 @@ npm run build     # production build in dist/
 npm run preview   # serve the production build
 ```
 
+Every push to `main` is built and deployed to GitHub Pages by `.github/workflows/deploy.yml`.
 The service worker and install prompt need HTTPS (or localhost). To use it on a phone, deploy `dist/` to any static host
 such as Netlify, Vercel, Cloudflare Pages or GitHub Pages, open it, and choose **Add to Home Screen**.
 
